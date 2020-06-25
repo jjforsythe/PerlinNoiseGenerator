@@ -351,3 +351,8 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+PerlinNoiseGenerator/PerlinNoiseGenerator.sln
+PerlinNoiseGenerator/PerlinNoiseGenerator/gtk-gui/generated.cs
+PerlinNoiseGenerator/PerlinNoiseGenerator/gtk-gui/gui.stetic
+PerlinNoiseGenerator/PerlinNoiseGenerator/PerlinNoiseGenerator.csproj
+PerlinNoiseGenerator/PerlinNoiseGenerator/Properties/AssemblyInfo.cs
