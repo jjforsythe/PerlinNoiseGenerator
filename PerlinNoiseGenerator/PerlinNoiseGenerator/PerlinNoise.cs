@@ -1,4 +1,4 @@
-﻿//Copyright(c) 2020 Max Whitby
+﻿//Created by Max Whitby
 
 //Permission is hereby granted, free of charge, to any person obtaining a copy
 //of this software and associated documentation files (the "PerlinNoise"), to deal
@@ -18,7 +18,7 @@ namespace PerlinNoiseGenerator
     public static class PerlinNoise
     {
         /// <summary>
-        /// returns an image(width, height) with generated perlin noise.
+        /// returns an image(width, height) with generated perlin noise. Persistance is the decay in amplitude per octave.
         /// </summary>
         /// <param name="width">image width</param>
         /// <param name="height">image height</param>
@@ -26,14 +26,25 @@ namespace PerlinNoiseGenerator
         /// <param name="persistance">Persistance is used for how long the amplitude will resonate between octaves</param>
         /// <param name="amplitude">The amplitude of the noise. A low value means not very noisy, a high value means pretty noisy</param>
         /// <returns></returns>
-        public static float[,] Noise(int width, int height, int octaveCount, float persistance, float amplitude) => Blend(GenerateNoise(width, height), octaveCount, width, height, persistance, amplitude);
+        public static float[,] Noise(int width, int height, int octaveCount, float persistance, float amplitude) => Blend(GenerateNoise(width, height), octaveCount, width, height, new float[] { }, persistance, amplitude);
 
 
+
+        /// <summary>
+        /// returns an image(width, height) with generated perlin noise. Prominance is an array which can be seen as a 'tuner' for each octave of the noise.
+        /// </summary>
+        /// <param name="width">image width</param>
+        /// <param name="height">image height</param>
+        /// <param name="octaveCount">number of octaves (think fourier composition) which represent number of images that will be blended</param>
+        /// <param name="prominence">values that dictate the amplitude of a given octave. A more fine grained approach. </param>
+        /// <returns></returns>
         public static float[,] Noise(int width, int height, int octaveCount, float[] prominence) => Blend(GenerateNoise(width, height), octaveCount, width, height, prominence);
 
 
 
-        private static float[,] GenerateNoise(int width, int height)
+
+        // Produces a float array of .NET noise based on a width/height between 0,1. Sample size controls the fine grainness of output
+        private static float[,] GenerateNoise(int width, int height, int samplesize=8192)
         {
             float[,] noise = new float[width, height];
             Random randomNumber = new Random();
@@ -41,12 +52,13 @@ namespace PerlinNoiseGenerator
             {
                 for (int j = 0; j < height; ++j)
                 {
-                    noise[i, j] = Convert.ToSingle(randomNumber.Next(0, 4096) ) / 4096f ;
+                    noise[i, j] = Convert.ToSingle(randomNumber.Next(0, samplesize) ) / samplesize ;
                 }
             }
             return noise;
         }
 
+        //Given a 2D-Image we iterate through every pixel.
         private static float[,] Smooth(float[,] baseNoise, int octave, int width, int height)
         {
             float[,] smoothNoise = new float[width, height];
@@ -63,7 +75,7 @@ namespace PerlinNoiseGenerator
 
                 for (int j = 0; j < height; ++j)
                 {
-                    int firstVerticalSample = (j / smoothPeriod) * smoothPeriod;
+                    int firstVerticalSample = ( j / smoothPeriod) * smoothPeriod;
                     int secondVerticalSample = (firstVerticalSample + smoothPeriod) % height;
                     float verticalBlend = (j - firstVerticalSample) * smoothFrequency;
 
@@ -77,7 +89,7 @@ namespace PerlinNoiseGenerator
             return smoothNoise;
         }
 
-        private static float[,] Blend(float[,] baseNoise, int octaveCount, int width, int height, float[] promenance)
+        private static float[,] Blend(float[,] baseNoise, int octaveCount, int width, int height, float[] promenance, float amplitude = 1, float persistance = 1 )
         {
             List<float[,]> smoothNoise = new List<float[,]>();
 
@@ -92,13 +104,18 @@ namespace PerlinNoiseGenerator
             //blend noise together
             for (int octave = octaveCount - 1; octave >= 0; octave--)
             {
-                float tempPromenance = promenance[octaveCount - 1 - octave];
-                totalAmplitude += tempPromenance;
+                float promenanceToApply = (promenance.Length > 0) ? promenance[octaveCount - 1 - octave] : 1;
+
+
+                amplitude *= persistance;
+                 
+                totalAmplitude += ( amplitude * promenanceToApply) ;
+
                 for (int i = 0; i < width; ++i)
                 {
                     for (int j = 0; j < height; ++j)
                     {
-                        perlinNoise[i, j] += smoothNoise[octave][i, j] * tempPromenance;
+                        perlinNoise[i, j] += smoothNoise[octave][i, j] * promenanceToApply * amplitude;
                     }
                 }
             }
@@ -109,38 +126,39 @@ namespace PerlinNoiseGenerator
             return perlinNoise;
         }
 
-        private static float[,] Blend(float[,] baseNoise, int octaveCount, int width, int height, float persistance, float amplitude)
-        {
-            List<float[,]> smoothNoise = new List<float[,]>();
+        //private static float[,] Blend(float[,] baseNoise, int octaveCount, int width, int height, float persistance, float amplitude)
+        //{
+        //    List<float[,]> smoothNoise = new List<float[,]>();
 
-            for (int i = 0; i < octaveCount; i++)
-            {
-                smoothNoise.Add(Smooth(baseNoise, i, width, height));
-            }
+        //    for (int i = 0; i < octaveCount; i++)
+        //    {
+        //        smoothNoise.Add(Smooth(baseNoise, i, width, height));
+        //    }
 
-            float[,] perlinNoise = new float[width, height];
+        //    float[,] perlinNoise = new float[width, height];
 
-            float totalAmplitude = 0.0f;
-            //blend noise together
-            for (int octave = octaveCount - 1; octave >= 0; octave--)
-            {
-                amplitude *= persistance;
-                totalAmplitude += amplitude;
-                for (int i = 0; i < width; i++)
-                {
-                    for (int j = 0; j < height; j++)
-                    {
-                        perlinNoise[i, j] += smoothNoise[octave][i, j] * amplitude;
-                    }
-                }
-            }
-            //normalisation
-            for (int i = 0; i < width; i++) { for (int j = 0; j < height; j++) { perlinNoise[i, j] /= totalAmplitude; } }
+        //    float totalAmplitude = 0.0f;
+        //    //blend noise together
+        //    for (int octave = octaveCount - 1; octave >= 0; octave--)
+        //    {
+        //        amplitude *= persistance;
+        //        totalAmplitude += amplitude;
+        //        for (int i = 0; i < width; i++)
+        //        {
+        //            for (int j = 0; j < height; j++)
+        //            {
+        //                perlinNoise[i, j] += smoothNoise[octave][i, j] * amplitude;
+        //            }
+        //        }
+        //    }
+        //    //normalisation
+        //    for (int i = 0; i < width; i++) { for (int j = 0; j < height; j++) { perlinNoise[i, j] /= totalAmplitude; } }
 
-            return perlinNoise;
-        }
+        //    return perlinNoise;
+        //}
 
         private static float Lerp(float a, float b, float t) => (1f - t) * a + b * t;
+
 
     }
 }
